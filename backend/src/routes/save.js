@@ -12,13 +12,8 @@ router.post('/', async (req, res, next) => {
 
     const record = {
       symbol: symbol.toUpperCase(),
-      price: stockData.price,
-      change_pct: stockData.changePercent,
-      volume: stockData.volume,
-      summary: analysis.summary,
-      sentiment: analysis.sentiment,
-      risk_level: analysis.risk_level,
-      created_at: new Date().toISOString(),
+      stock_data: stockData,
+      analysis_data: analysis,
     };
 
     const result = await saveAnalysis(record);
