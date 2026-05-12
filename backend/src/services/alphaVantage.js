@@ -1,47 +1,26 @@
 const axios = require('axios');
 
-const BASE_URL = 'https://www.alphavantage.co/query';
-
 async function getStockData(symbol) {
-  const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
-  if (!apiKey) {
-    throw new Error('ALPHA_VANTAGE_API_KEY is not configured. Copy backend/.env.example to backend/.env and set your key.');
-  }
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbol}`;
 
-  const { data } = await axios.get(BASE_URL, {
-    params: {
-      function: 'GLOBAL_QUOTE',
-      symbol,
-      apikey: apiKey,
-    },
+  const { data } = await axios.get(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0' },
   });
 
-  console.log('[Alpha Vantage] raw response keys:', Object.keys(data));
-
-  if (data['Error Message']) {
-    throw new Error(data['Error Message']);
-  }
-  if (data.Note) {
-    console.log('[Alpha Vantage] Note:', data.Note);
-  }
-
-  const quote = data['Global Quote'];
-  const hasData = quote && quote['01. symbol'];
-
-  if (!hasData) {
-    const detail = JSON.stringify(data).slice(0, 200);
-    throw new Error(`No data found for symbol: ${symbol}. Response: ${detail}`);
+  const result = data?.quoteResponse?.result?.[0];
+  if (!result || !result.symbol) {
+    throw new Error(`No data found for symbol: ${symbol}`);
   }
 
   return {
-    symbol: quote['01. symbol'],
-    price: parseFloat(quote['05. price']),
-    change: parseFloat(quote['09. change']),
-    changePercent: quote['10. change percent'],
-    high: parseFloat(quote['03. high']),
-    low: parseFloat(quote['04. low']),
-    volume: parseInt(quote['06. volume'], 10),
-    previousClose: parseFloat(quote['08. previous close']),
+    symbol: result.symbol,
+    price: result.regularMarketPrice,
+    change: result.regularMarketChange,
+    changePercent: result.regularMarketChangePercent.toFixed(4) + '%',
+    high: result.regularMarketDayHigh,
+    low: result.regularMarketDayLow,
+    volume: result.regularMarketVolume,
+    previousClose: result.regularMarketPreviousClose,
   };
 }
 
