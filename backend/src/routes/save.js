@@ -13,7 +13,7 @@ router.post('/', async (req, res, next) => {
     const record = {
       symbol: symbol.toUpperCase(),
       stock_data: stockData,
-      analysis_data: analysis,
+      analysis: analysis,
     };
 
     const result = await saveAnalysis(record);
