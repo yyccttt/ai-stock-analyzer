@@ -158,6 +158,39 @@ a:focus-visible {
   font-size: 12px;
 }
 
+.header-actions {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.language-switch {
+  display: flex;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(4, 12, 22, 0.62);
+}
+
+.language-switch button {
+  min-width: 34px;
+  height: 27px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  color: #71859b;
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.language-switch button.active {
+  color: #04251b;
+  background: var(--accent);
+}
+
 .market-status span,
 .live-dot {
   width: 7px;
@@ -269,6 +302,7 @@ main {
   background: transparent;
   cursor: pointer;
   font-size: 12px;
+  white-space: nowrap;
 }
 
 .mode-switch button.active {
@@ -1074,6 +1108,10 @@ footer p {
     display: none;
   }
 
+  .header-actions {
+    gap: 12px;
+  }
+
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
@@ -1113,24 +1151,28 @@ footer p {
   }
 
   .market-status {
-    font-size: 0;
+    display: none;
   }
 
   main {
     width: min(100% - 28px, 1180px);
-    padding: 48px 0 60px;
+    padding: 34px 0 48px;
   }
 
   .hero {
-    margin-bottom: 36px;
+    margin-bottom: 28px;
   }
 
   .hero h1 {
-    font-size: 39px;
+    margin: 12px 0;
+    font-size: clamp(32px, 9.5vw, 38px);
+    line-height: 1.06;
+    letter-spacing: -0.048em;
   }
 
   .hero p {
-    font-size: 14px;
+    font-size: 13px;
+    line-height: 1.65;
   }
 
   .search-card,
@@ -1145,12 +1187,18 @@ footer p {
     display: grid;
   }
 
+  .comparison-heading {
+    display: flex;
+    align-items: center;
+  }
+
   .mode-switch {
     width: 100%;
   }
 
   .mode-switch button {
     flex: 1;
+    min-height: 36px;
   }
 
   .search-row {
@@ -1159,6 +1207,21 @@ footer p {
 
   .search-row > .primary-button {
     min-height: 48px;
+  }
+
+  .watchlist-bar {
+    margin: 10px 2px 2px;
+    align-items: flex-start;
+  }
+
+  .starter-panel,
+  .loading-card {
+    min-height: 126px;
+    padding: 22px;
+  }
+
+  .history-card {
+    padding: 20px 18px;
   }
 
   .result-topline {
@@ -1215,6 +1278,107 @@ footer p {
     grid-column: 1 / -1;
   }
 
+  .table-wrap {
+    margin-top: 24px;
+    overflow: visible;
+  }
+
+  .comparison-table,
+  .comparison-table tbody {
+    display: block;
+  }
+
+  .comparison-table thead {
+    display: none;
+  }
+
+  .comparison-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  .comparison-table tr {
+    padding: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 13px 18px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(5, 15, 27, 0.42);
+  }
+
+  .comparison-table td,
+  .comparison-table td:first-child {
+    min-width: 0;
+    padding: 0;
+    display: grid;
+    gap: 5px;
+    border: 0;
+  }
+
+  .comparison-table td::before {
+    content: attr(data-label);
+    color: #71849a;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .comparison-table td:first-child {
+    grid-column: 1 / -1;
+    padding-bottom: 12px;
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .comparison-table td:first-child::before,
+  .comparison-action::before {
+    display: none;
+  }
+
+  .comparison-table td:first-child strong,
+  .comparison-table td:first-child span {
+    display: inline;
+    margin: 0;
+  }
+
+  .comparison-table td:first-child span {
+    justify-self: end;
+  }
+
+  .comparison-table td:nth-child(5),
+  .comparison-action {
+    grid-column: 1 / -1;
+  }
+
+  .comparison-table td:nth-child(5) {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .comparison-table td:nth-child(5)::before {
+    grid-column: 1 / -1;
+  }
+
+  .mini-range {
+    width: 100%;
+  }
+
+  .comparison-action .text-button {
+    width: 100%;
+    min-height: 38px;
+    border: 1px solid rgba(57, 230, 177, 0.25);
+    border-radius: 8px;
+    background: rgba(57, 230, 177, 0.06);
+  }
+
+  .empty-comparison {
+    min-height: 260px;
+    padding: 20px 8px 6px;
+  }
+
   footer {
     padding: 20px;
     display: grid;
@@ -1226,6 +1390,42 @@ footer p {
     bottom: 14px;
     left: 14px;
     text-align: center;
+  }
+}
+
+@media (max-width: 370px) {
+  .site-header {
+    padding: 0 14px;
+  }
+
+  .brand {
+    gap: 9px;
+  }
+
+  .brand small {
+    display: none;
+  }
+
+  main {
+    width: calc(100% - 22px);
+  }
+
+  .hero h1 {
+    font-size: 31px;
+  }
+
+  .search-card,
+  .comparison-card,
+  .result-card {
+    padding: 17px;
+  }
+
+  .result-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .result-actions .primary-button {
+    grid-column: auto;
   }
 }
 

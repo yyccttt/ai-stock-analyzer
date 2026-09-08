@@ -20,14 +20,14 @@ function createTestApp() {
       getMultipleStockData: async (symbols) => symbols.map((symbol) => ({ ...quote, symbol })),
     },
     analysisService: {
-      analyzeStock: async (_stock, { mode }) => ({
+      analyzeStock: async (_stock, { mode, language }) => ({
         summary: '测试分析',
         sentiment: 'neutral',
         risk_level: 'low',
         confidence: 60,
         highlights: [],
         risks: [],
-        source: mode,
+        source: `${mode}:${language}`,
       }),
     },
     storageService: {
@@ -66,9 +66,9 @@ test('comparison endpoint returns two normalized quotes', async () => {
 test('analysis endpoint forwards the selected mode', async () => {
   const response = await request(createTestApp())
     .post('/api/analyze')
-    .send({ stockData: quote, mode: 'quick' })
+    .send({ stockData: quote, mode: 'quick', language: 'en' })
     .expect(200);
-  assert.equal(response.body.source, 'quick');
+  assert.equal(response.body.source, 'quick:en');
 });
 
 test('save endpoint rejects mismatched symbols', async () => {

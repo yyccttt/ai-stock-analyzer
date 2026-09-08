@@ -5,12 +5,12 @@ const VALID_RISK_LEVELS = ['low', 'medium', 'high'];
 const SYSTEM_PROMPT = `你是一名谨慎、客观的美股分析助手。根据给定的单次行情快照输出 JSON，不得输出 Markdown 或额外文字。
 
 JSON 必须包含：
-- summary：2-4 句中文摘要，不得承诺收益
+- summary：2-4 句简洁摘要，使用用户指定的语言，不得承诺收益
 - sentiment：bullish、bearish 或 neutral
 - risk_level：low、medium 或 high
 - confidence：0-100 的整数，表示结论可信度而非上涨概率
-- highlights：1-3 条简短中文要点数组
-- risks：1-3 条简短中文风险数组
+- highlights：1-3 条简短要点数组
+- risks：1-3 条简短风险数组
 
 必须说明单次行情快照的局限性，并避免将结果表述为投资建议。`;
 
@@ -18,7 +18,7 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function buildRuleBasedAnalysis(stockData, notice) {
+function buildRuleBasedAnalysis(stockData, notice, language = 'zh') {
   const changePercent = Number(stockData.changePercent) || 0;
   const position52Week = Number(stockData.metrics?.position52Week) || 0;
   const intradayRange = Number(stockData.metrics?.intradayRangePercent) || 0;
@@ -37,6 +37,28 @@ function buildRuleBasedAnalysis(stockData, notice) {
     : absoluteMove >= 2 || intradayRange >= 3
       ? 'medium'
       : 'low';
+  if (language === 'en') {
+    const direction = changePercent > 0 ? 'up' : changePercent < 0 ? 'down' : 'unchanged';
+    const tone = sentiment === 'bullish' ? 'constructive' : sentiment === 'bearish' ? 'weak' : 'neutral';
+    return {
+      summary: `${stockData.symbol} is ${direction} ${Math.abs(changePercent).toFixed(2)}% from the previous close, leaving the near-term signal ${tone}. The price sits at ${position52Week.toFixed(1)}% of its 52-week range, so a longer time horizon is needed to confirm the signal.`,
+      sentiment,
+      risk_level: riskLevel,
+      confidence: clamp(Math.round(55 + Math.abs(score) * 7), 55, 80),
+      highlights: [
+        `Price is ${direction} ${Math.abs(changePercent).toFixed(2)}% from the previous close`,
+        `Price is at ${position52Week.toFixed(1)}% of its 52-week range`,
+      ],
+      risks: [
+        `The intraday range is ${intradayRange.toFixed(2)}% of the previous close`,
+        'This snapshot excludes financials, news, macro conditions, and longer-term price history',
+      ],
+      source: 'rule-based',
+      notice: notice || 'Using the transparent rapid-assessment model.',
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
   const direction = changePercent > 0 ? '上涨' : changePercent < 0 ? '下跌' : '持平';
   const highlights = [
     `当前价格较前收盘${direction} ${Math.abs(changePercent).toFixed(2)}%`,
@@ -94,10 +116,17 @@ function normalizeAnalysis(result) {
 }
 
 async function analyzeStock(stockData, options = {}) {
-  if (options.mode === 'quick') return buildRuleBasedAnalysis(stockData);
+  const language = options.language === 'en' ? 'en' : 'zh';
+  if (options.mode === 'quick') return buildRuleBasedAnalysis(stockData, null, language);
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    return buildRuleBasedAnalysis(stockData, 'DeepSeek 未配置，已自动切换为快速评估。');
+    return buildRuleBasedAnalysis(
+      stockData,
+      language === 'en'
+        ? 'DeepSeek is not configured; switched to the rapid-assessment model.'
+        : 'DeepSeek 未配置，已自动切换为快速评估。',
+      language
+    );
   }
 
   try {
@@ -111,10 +140,17 @@ async function analyzeStock(stockData, options = {}) {
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          {
+            role: 'system',
+            content: `${SYSTEM_PROMPT}\n${language === 'en'
+              ? 'Write every human-readable field in English.'
+              : '所有面向用户的字段均使用简体中文。'}`,
+          },
           {
             role: 'user',
-            content: `请分析以下行情快照并仅返回 JSON：
+            content: `${language === 'en'
+              ? 'Analyze this market snapshot and return JSON only:'
+              : '请分析以下行情快照并仅返回 JSON：'}
 ${JSON.stringify(stockData, null, 2)}`,
           },
         ],
@@ -127,7 +163,13 @@ ${JSON.stringify(stockData, null, 2)}`,
     return normalizeAnalysis(extractJson(body.choices?.[0]?.message?.content));
   } catch (error) {
     console.warn(`DeepSeek analysis failed, using rule-based fallback: ${error.message}`);
-    return buildRuleBasedAnalysis(stockData, 'AI 服务暂时不可用，已自动切换为快速评估。');
+    return buildRuleBasedAnalysis(
+      stockData,
+      language === 'en'
+        ? 'AI is temporarily unavailable; switched to the rapid-assessment model.'
+        : 'AI 服务暂时不可用，已自动切换为快速评估。',
+      language
+    );
   }
 }
 

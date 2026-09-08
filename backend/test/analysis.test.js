@@ -37,6 +37,15 @@ test('rule-based analysis identifies bearish and high-risk moves', () => {
   assert.equal(result.risk_level, 'high');
 });
 
+test('rule-based analysis returns fully English user-facing content when requested', () => {
+  const result = buildRuleBasedAnalysis(stock(), null, 'en');
+  assert.equal(result.sentiment, 'bullish');
+  assert.match(result.summary, /previous close/);
+  assert.match(result.highlights[0], /Price is/);
+  assert.match(result.risks[1], /financials/);
+  assert.match(result.notice, /rapid-assessment/);
+});
+
 test('extractJson accepts fenced responses and surrounding text', () => {
   assert.deepEqual(extractJson('result: ```json\\n{\"summary\":\"ok\"}\\n```'), { summary: 'ok' });
 });

@@ -14,11 +14,17 @@ async function request(path, options = {}) {
     });
     const body = await response.json().catch(() => null);
     if (!response.ok) {
-      throw new Error(body?.error?.message || body?.error || `请求失败（${response.status}）`);
+      const error = new Error(body?.error?.message || body?.error || `HTTP ${response.status}`);
+      error.code = body?.error?.code || 'REQUEST_FAILED';
+      throw error;
     }
     return body;
   } catch (error) {
-    if (error.name === 'AbortError') throw new Error('请求超时，请稍后重试');
+    if (error.name === 'AbortError') {
+      const timeoutError = new Error('Request timed out');
+      timeoutError.code = 'REQUEST_TIMEOUT';
+      throw timeoutError;
+    }
     throw error;
   } finally {
     window.clearTimeout(timeoutId);
@@ -29,10 +35,10 @@ export function fetchStock(symbol) {
   return request(`/api/stock/${encodeURIComponent(symbol)}`);
 }
 
-export function analyzeStock(stockData, mode) {
+export function analyzeStock(stockData, mode, language) {
   return request('/api/analyze', {
     method: 'POST',
-    body: JSON.stringify({ stockData, mode }),
+    body: JSON.stringify({ stockData, mode, language }),
   });
 }
 

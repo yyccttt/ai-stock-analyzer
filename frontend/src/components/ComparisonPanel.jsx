@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import { formatCurrency, formatNumber, formatPercent } from '../lib/format';
 
-export default function ComparisonPanel({ onCompare, loading, data, onOpenSymbol }) {
+export default function ComparisonPanel({
+  onCompare,
+  loading,
+  data,
+  onOpenSymbol,
+  copy,
+  language,
+}) {
   const [symbols, setSymbols] = useState('AAPL, MSFT, NVDA');
 
   const handleSubmit = (event) => {
@@ -11,25 +18,25 @@ export default function ComparisonPanel({ onCompare, loading, data, onOpenSymbol
 
   return (
     <section className="comparison-card">
-      <div className="search-heading">
+      <div className="search-heading comparison-heading">
         <div>
-          <span className="eyebrow">SIDE BY SIDE</span>
-          <h2>股票横向对比</h2>
+          <span className="eyebrow">{copy.comparisonKicker}</span>
+          <h2>{copy.comparisonTitle}</h2>
         </div>
-        <span className="limit-note">最多 5 只</span>
+        <span className="limit-note">{copy.comparisonLimit}</span>
       </div>
       <form className="compare-form" onSubmit={handleSubmit}>
-        <label className="input-label" htmlFor="compare-symbols">用逗号或空格分隔代码</label>
+        <label className="input-label" htmlFor="compare-symbols">{copy.comparisonLabel}</label>
         <div className="search-row">
           <input
             id="compare-symbols"
             value={symbols}
             onChange={(event) => setSymbols(event.target.value.toUpperCase())}
-            placeholder="AAPL, MSFT, NVDA"
+            placeholder={copy.comparisonPlaceholder}
             disabled={loading}
           />
           <button type="submit" className="primary-button" disabled={loading}>
-            {loading ? '载入中…' : '开始对比'}
+            {loading ? copy.comparing : copy.startComparison}
           </button>
         </div>
       </form>
@@ -39,35 +46,38 @@ export default function ComparisonPanel({ onCompare, loading, data, onOpenSymbol
           <table className="comparison-table">
             <thead>
               <tr>
-                <th>股票</th>
-                <th>价格</th>
-                <th>涨跌幅</th>
-                <th>成交量</th>
-                <th>52 周位置</th>
-                <th><span className="sr-only">操作</span></th>
+                <th>{copy.stock}</th>
+                <th>{copy.price}</th>
+                <th>{copy.change}</th>
+                <th>{copy.volume}</th>
+                <th>{copy.rangePosition}</th>
+                <th><span className="sr-only">{copy.openAnalysis}</span></th>
               </tr>
             </thead>
             <tbody>
               {data.map((stock) => (
                 <tr key={stock.symbol}>
-                  <td>
+                  <td data-label={copy.stock}>
                     <strong>{stock.symbol}</strong>
-                    <span>{stock.name}</span>
+                    <span>{language === 'zh' ? stock.name : copy.usEquity}</span>
                   </td>
-                  <td>{formatCurrency(stock.price)}</td>
-                  <td className={stock.changePercent >= 0 ? 'positive-text' : 'negative-text'}>
+                  <td data-label={copy.price}>{formatCurrency(stock.price)}</td>
+                  <td
+                    data-label={copy.change}
+                    className={stock.changePercent >= 0 ? 'positive-text' : 'negative-text'}
+                  >
                     {formatPercent(stock.changePercent)}
                   </td>
-                  <td>{formatNumber(stock.volume)}</td>
-                  <td>
+                  <td data-label={copy.volume}>{formatNumber(stock.volume, language)}</td>
+                  <td data-label={copy.rangePosition}>
                     <div className="mini-range">
                       <span style={{ width: `${stock.metrics?.position52Week || 0}%` }} />
                     </div>
                     <small>{(stock.metrics?.position52Week || 0).toFixed(1)}%</small>
                   </td>
-                  <td>
+                  <td className="comparison-action">
                     <button className="text-button" type="button" onClick={() => onOpenSymbol(stock.symbol)}>
-                      分析 →
+                      {copy.openAnalysis} →
                     </button>
                   </td>
                 </tr>
@@ -83,8 +93,8 @@ export default function ComparisonPanel({ onCompare, loading, data, onOpenSymbol
             <span style={{ height: '50%' }} />
             <span style={{ height: '90%' }} />
           </div>
-          <h3>快速识别相对强弱</h3>
-          <p>一次查看价格、当日涨跌、成交量和 52 周区间位置。</p>
+          <h3>{copy.comparisonEmptyTitle}</h3>
+          <p>{copy.comparisonEmptyBody}</p>
         </div>
       )}
     </section>

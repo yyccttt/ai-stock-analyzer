@@ -9,8 +9,9 @@ function createAnalyzeRouter(analysisService = defaultAnalysisService) {
     try {
       const stockData = requireObject(req.body?.stockData, 'stockData');
       const mode = req.body?.mode === 'quick' ? 'quick' : 'ai';
+      const language = req.body?.language === 'en' ? 'en' : 'zh';
       normalizeSymbol(stockData.symbol);
-      const analysis = await analysisService.analyzeStock(stockData, { mode });
+      const analysis = await analysisService.analyzeStock(stockData, { mode, language });
       res.json(analysis);
     } catch (err) {
       next(err);
