@@ -1,6 +1,18 @@
+# dependencies
 node_modules/
-.env
-build/
+
+# builds and coverage
 dist/
-.DS_Store
+build/
+coverage/
+
+# local configuration
+.env
+.env.local
 *.log
+
+# editor and operating system files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

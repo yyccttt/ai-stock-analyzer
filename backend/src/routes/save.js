@@ -1,26 +1,29 @@
 const { Router } = require('express');
-const { saveAnalysis } = require('../services/supabase');
+const defaultStorageService = require('../services/supabase');
+const { normalizeSymbol, requireObject } = require('../validation');
+const { AppError } = require('../errors');
 
-const router = Router();
+function createSaveRouter(storageService = defaultStorageService) {
+  const router = Router();
 
-router.post('/', async (req, res, next) => {
-  try {
-    const { symbol, stockData, analysis } = req.body;
-    if (!symbol || !stockData || !analysis) {
-      return res.status(400).json({ error: 'Request body must include symbol, stockData, and analysis' });
+  router.post('/', async (req, res, next) => {
+    try {
+      const symbol = normalizeSymbol(req.body?.symbol);
+      const stockData = requireObject(req.body?.stockData, 'stockData');
+      const analysis = requireObject(req.body?.analysis, 'analysis');
+      if (normalizeSymbol(stockData.symbol) !== symbol) {
+        throw new AppError(400, 'SYMBOL_MISMATCH', 'symbol must match stockData.symbol');
+      }
+
+      const record = { symbol, stock_data: stockData, analysis };
+      const result = await storageService.saveAnalysis(record);
+      res.status(201).json({ data: result.data, storage: 'supabase' });
+    } catch (err) {
+      next(err);
     }
+  });
 
-    const record = {
-      symbol: symbol.toUpperCase(),
-      stock_data: stockData,
-      analysis: analysis,
-    };
+  return router;
+}
 
-    const result = await saveAnalysis(record);
-    res.status(201).json(result.data);
-  } catch (err) {
-    next(err);
-  }
-});
-
-module.exports = router;
+module.exports = createSaveRouter;
