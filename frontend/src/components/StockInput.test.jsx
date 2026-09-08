@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import StockInput from './StockInput';
+import { messages } from '../lib/i18n';
 
 function renderInput(overrides = {}) {
   const props = {
@@ -9,6 +10,7 @@ function renderInput(overrides = {}) {
     loading: false,
     mode: 'ai',
     onModeChange: vi.fn(),
+    copy: messages.zh,
     ...overrides,
   };
   render(<StockInput {...props} />);
@@ -36,5 +38,11 @@ describe('StockInput', () => {
     const props = renderInput();
     await user.click(screen.getByRole('button', { name: '快速评估' }));
     expect(props.onModeChange).toHaveBeenCalledWith('quick');
+  });
+
+  it('renders the English interface copy', () => {
+    renderInput({ copy: messages.en });
+    expect(screen.getByLabelText('US ticker')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Analyze stock' })).toBeDisabled();
   });
 });

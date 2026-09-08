@@ -13,6 +13,7 @@ describe('format helpers', () => {
   });
 
   it('uses compact notation for large volumes', () => {
-    expect(formatNumber(1_500_000)).toMatch(/150万|1\.5M/i);
+    expect(formatNumber(1_500_000, 'zh')).toMatch(/150万|1\.5M/i);
+    expect(formatNumber(1_500_000, 'en')).toBe('1.5M');
   });
 });

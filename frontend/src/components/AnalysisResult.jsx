@@ -1,17 +1,5 @@
 import { formatCurrency, formatNumber, formatPercent } from '../lib/format';
 
-const sentimentMap = {
-  bullish: { label: '偏强', className: 'positive' },
-  bearish: { label: '偏弱', className: 'negative' },
-  neutral: { label: '中性', className: 'neutral' },
-};
-
-const riskMap = {
-  low: { label: '低风险', className: 'positive' },
-  medium: { label: '中风险', className: 'warning' },
-  high: { label: '高风险', className: 'negative' },
-};
-
 export default function AnalysisResult({
   stockData,
   analysis,
@@ -21,11 +9,24 @@ export default function AnalysisResult({
   onToggleFavorite,
   onExport,
   onCopy,
+  copy,
+  language,
 }) {
+  const sentimentMap = {
+    bullish: { label: copy.sentimentBullish, className: 'positive' },
+    bearish: { label: copy.sentimentBearish, className: 'negative' },
+    neutral: { label: copy.sentimentNeutral, className: 'neutral' },
+  };
+  const riskMap = {
+    low: { label: copy.riskLow, className: 'positive' },
+    medium: { label: copy.riskMedium, className: 'warning' },
+    high: { label: copy.riskHigh, className: 'negative' },
+  };
   const sentiment = sentimentMap[analysis.sentiment] || sentimentMap.neutral;
   const risk = riskMap[analysis.risk_level] || riskMap.medium;
   const isUp = stockData.change >= 0;
   const position = Math.min(100, Math.max(0, stockData.metrics?.position52Week || 0));
+  const companyName = language === 'zh' ? (stockData.name || stockData.symbol) : stockData.symbol;
 
   return (
     <article className="result-card">
@@ -35,19 +36,19 @@ export default function AnalysisResult({
             className={`favorite-button ${isFavorite ? 'selected' : ''}`}
             onClick={onToggleFavorite}
             type="button"
-            aria-label={isFavorite ? '从自选股移除' : '加入自选股'}
-            title={isFavorite ? '从自选股移除' : '加入自选股'}
+            aria-label={isFavorite ? copy.removeFavorite : copy.addFavorite}
+            title={isFavorite ? copy.removeFavorite : copy.addFavorite}
           >
             {isFavorite ? '★' : '☆'}
           </button>
           <div>
-            <div className="company-name">{stockData.name || stockData.symbol}</div>
-            <div className="ticker">{stockData.symbol} · NASDAQ/NYSE</div>
+            <div className="company-name">{companyName}</div>
+            <div className="ticker">{stockData.symbol} · {copy.usEquity}</div>
           </div>
         </div>
         <div className="source-note">
           <span className="live-dot" />
-          {stockData.cached ? '缓存行情' : '最新行情'} · {stockData.sourceUpdatedAt || '刚刚'}
+          {stockData.cached ? copy.cachedQuote : copy.latestQuote} · {stockData.sourceUpdatedAt || '—'}
         </div>
       </div>
 
@@ -59,15 +60,15 @@ export default function AnalysisResult({
       </div>
 
       <div className="metrics-grid">
-        <div><span>开盘</span><strong>{formatCurrency(stockData.open)}</strong></div>
-        <div><span>最高</span><strong>{formatCurrency(stockData.high)}</strong></div>
-        <div><span>最低</span><strong>{formatCurrency(stockData.low)}</strong></div>
-        <div><span>成交量</span><strong>{formatNumber(stockData.volume)}</strong></div>
+        <div><span>{copy.open}</span><strong>{formatCurrency(stockData.open)}</strong></div>
+        <div><span>{copy.high}</span><strong>{formatCurrency(stockData.high)}</strong></div>
+        <div><span>{copy.low}</span><strong>{formatCurrency(stockData.low)}</strong></div>
+        <div><span>{copy.volume}</span><strong>{formatNumber(stockData.volume, language)}</strong></div>
       </div>
 
-      <section className="range-section" aria-label="52 周价格位置">
+      <section className="range-section" aria-label={copy.range52}>
         <div className="range-heading">
-          <span>52 周价格位置</span>
+          <span>{copy.range52}</span>
           <strong>{position.toFixed(1)}%</strong>
         </div>
         <div className="range-track">
@@ -83,13 +84,13 @@ export default function AnalysisResult({
       <section className="analysis-section">
         <div className="analysis-heading">
           <div>
-            <span className="eyebrow">ANALYSIS SIGNAL</span>
-            <h3>{analysis.source === 'deepseek' ? 'AI 深度分析' : '快速量化评估'}</h3>
+            <span className="eyebrow">{copy.analysisKicker}</span>
+            <h3>{analysis.source === 'deepseek' ? copy.aiAnalysis : copy.quickAnalysis}</h3>
           </div>
           <div className="badges">
             <span className={`badge ${sentiment.className}`}>{sentiment.label}</span>
             <span className={`badge ${risk.className}`}>{risk.label}</span>
-            <span className="badge confidence">{analysis.confidence}% 置信度</span>
+            <span className="badge confidence">{analysis.confidence}% {copy.confidence}</span>
           </div>
         </div>
 
@@ -97,34 +98,30 @@ export default function AnalysisResult({
 
         <div className="insight-grid">
           <div className="insight-panel">
-            <h4><span className="insight-icon positive">+</span>关键观察</h4>
-            <ul>
-              {(analysis.highlights || []).map((item) => <li key={item}>{item}</li>)}
-            </ul>
+            <h4><span className="insight-icon positive">+</span>{copy.observations}</h4>
+            <ul>{(analysis.highlights || []).map((item) => <li key={item}>{item}</li>)}</ul>
           </div>
           <div className="insight-panel">
-            <h4><span className="insight-icon warning">!</span>风险提示</h4>
-            <ul>
-              {(analysis.risks || []).map((item) => <li key={item}>{item}</li>)}
-            </ul>
+            <h4><span className="insight-icon warning">!</span>{copy.riskNotes}</h4>
+            <ul>{(analysis.risks || []).map((item) => <li key={item}>{item}</li>)}</ul>
           </div>
         </div>
 
         {analysis.notice && <div className="notice">{analysis.notice}</div>}
-        <p className="disclaimer">仅供研究与信息参考，不构成任何投资建议。</p>
+        <p className="disclaimer">{copy.disclaimer}</p>
       </section>
 
       <div className="result-actions">
-        <button type="button" className="secondary-button" onClick={onCopy}>复制摘要</button>
-        <button type="button" className="secondary-button" onClick={onExport}>导出 JSON</button>
+        <button type="button" className="secondary-button" onClick={onCopy}>{copy.copySummary}</button>
+        <button type="button" className="secondary-button" onClick={onExport}>{copy.exportJson}</button>
         <button type="button" className="primary-button" onClick={onSave} disabled={saveStatus === 'saving'}>
           {saveStatus === 'saving'
-            ? '保存中…'
+            ? copy.saving
             : saveStatus === 'cloud'
-              ? '已保存并同步'
+              ? copy.savedCloud
               : saveStatus === 'local'
-                ? '已保存到本地'
-                : '保存分析'}
+                ? copy.savedLocal
+                : copy.saveAnalysis}
         </button>
       </div>
     </article>

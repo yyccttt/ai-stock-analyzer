@@ -1,15 +1,15 @@
 import { formatCurrency, formatDate, formatPercent } from '../lib/format';
 
-export default function HistoryPanel({ history, onSelect, onClear }) {
+export default function HistoryPanel({ history, onSelect, onClear, copy, language }) {
   return (
     <aside className="history-card">
       <div className="history-heading">
         <div>
-          <span className="eyebrow">LOCAL ARCHIVE</span>
-          <h2>最近分析</h2>
+          <span className="eyebrow">{copy.historyKicker}</span>
+          <h2>{copy.historyTitle}</h2>
         </div>
         {history.length > 0 && (
-          <button type="button" className="text-button muted" onClick={onClear}>清空</button>
+          <button type="button" className="text-button muted" onClick={onClear}>{copy.clear}</button>
         )}
       </div>
       {history.length ? (
@@ -23,7 +23,7 @@ export default function HistoryPanel({ history, onSelect, onClear }) {
             >
               <span className="history-symbol">
                 <strong>{item.stockData.symbol}</strong>
-                <small>{formatDate(item.savedAt)}</small>
+                <small>{formatDate(item.savedAt, language)}</small>
               </span>
               <span className="history-price">
                 <strong>{formatCurrency(item.stockData.price)}</strong>
@@ -37,7 +37,7 @@ export default function HistoryPanel({ history, onSelect, onClear }) {
       ) : (
         <div className="empty-history">
           <span>◎</span>
-          <p>保存的分析会安全地保留在当前浏览器中。</p>
+          <p>{copy.historyEmpty}</p>
         </div>
       )}
     </aside>
