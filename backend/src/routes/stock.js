@@ -1,19 +1,31 @@
 const { Router } = require('express');
-const { getStockData } = require('../services/alphaVantage');
+const defaultStockService = require('../services/stockData');
+const { normalizeSymbol, normalizeSymbols } = require('../validation');
 
-const router = Router();
+function createStockRouter(stockService = defaultStockService) {
+  const router = Router();
 
-router.get('/:symbol', async (req, res, next) => {
-  try {
-    const { symbol } = req.params;
-    if (!symbol || symbol.length > 10) {
-      return res.status(400).json({ error: 'Invalid stock symbol' });
+  router.post('/compare', async (req, res, next) => {
+    try {
+      const symbols = normalizeSymbols(req.body?.symbols);
+      const data = await stockService.getMultipleStockData(symbols);
+      res.json({ data, count: data.length });
+    } catch (err) {
+      next(err);
     }
-    const data = await getStockData(symbol.toUpperCase());
-    res.json(data);
-  } catch (err) {
-    next(err);
-  }
-});
+  });
 
-module.exports = router;
+  router.get('/:symbol', async (req, res, next) => {
+    try {
+      const symbol = normalizeSymbol(req.params.symbol);
+      const data = await stockService.getStockData(symbol);
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  return router;
+}
+
+module.exports = createStockRouter;

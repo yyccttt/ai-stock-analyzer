@@ -1,69 +1,139 @@
-const axios = require('axios');
-
-const API_KEY = process.env.DEEPSEEK_API_KEY;
 const BASE_URL = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1';
+const VALID_SENTIMENTS = ['bullish', 'bearish', 'neutral'];
+const VALID_RISK_LEVELS = ['low', 'medium', 'high'];
 
-const SYSTEM_PROMPT = `You are a professional stock analyst. Analyze the given stock data and return ONLY valid JSON — no markdown, no code fences, no extra text.
+const SYSTEM_PROMPT = `你是一名谨慎、客观的美股分析助手。根据给定的单次行情快照输出 JSON，不得输出 Markdown 或额外文字。
 
-The JSON object must have exactly these three fields:
-- "summary": a concise analysis summary (string, 2-4 sentences in Chinese)
-- "sentiment": one of "bullish", "bearish", or "neutral" (string)
-- "risk_level": one of "low", "medium", or "high" (string)
+JSON 必须包含：
+- summary：2-4 句中文摘要，不得承诺收益
+- sentiment：bullish、bearish 或 neutral
+- risk_level：low、medium 或 high
+- confidence：0-100 的整数，表示结论可信度而非上涨概率
+- highlights：1-3 条简短中文要点数组
+- risks：1-3 条简短中文风险数组
 
-Example of valid output:
-{"summary":"该股票近期表现强劲，技术指标显示上升趋势。","sentiment":"bullish","risk_level":"low"}`;
+必须说明单次行情快照的局限性，并避免将结果表述为投资建议。`;
 
-async function analyzeStock(stockData) {
-  const response = await axios.post(
-    `${BASE_URL}/chat/completions`,
-    {
-      model: 'deepseek-chat',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: `Analyze this stock data and return only the JSON object:\n${JSON.stringify(stockData, null, 2)}`,
-        },
-      ],
-      temperature: 0.3,
-      max_tokens: 500,
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${API_KEY}`,
-      },
-    }
-  );
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
 
-  const raw = response.data.choices[0].message.content.trim();
+function buildRuleBasedAnalysis(stockData, notice) {
+  const changePercent = Number(stockData.changePercent) || 0;
+  const position52Week = Number(stockData.metrics?.position52Week) || 0;
+  const intradayRange = Number(stockData.metrics?.intradayRangePercent) || 0;
+  let score = 0;
+  if (changePercent >= 1) score += 2;
+  else if (changePercent <= -1) score -= 2;
+  if (stockData.price > stockData.open) score += 1;
+  else if (stockData.price < stockData.open) score -= 1;
+  if (position52Week >= 75) score += 1;
+  else if (position52Week > 0 && position52Week <= 25) score -= 1;
 
-  let cleaned = raw;
-  if (cleaned.startsWith('```')) {
-    cleaned = cleaned.replace(/```(?:json)?\s*/g, '').replace(/```\s*$/, '').trim();
-  }
-
-  const result = JSON.parse(cleaned);
-
-  if (!result.summary || !result.sentiment || !result.risk_level) {
-    throw new Error('AI response missing required fields (summary, sentiment, risk_level)');
-  }
-
-  const validSentiments = ['bullish', 'bearish', 'neutral'];
-  const validRiskLevels = ['low', 'medium', 'high'];
-
-  if (!validSentiments.includes(result.sentiment)) {
-    throw new Error(`Invalid sentiment: ${result.sentiment}`);
-  }
-  if (!validRiskLevels.includes(result.risk_level)) {
-    throw new Error(`Invalid risk_level: ${result.risk_level}`);
-  }
+  const sentiment = score >= 2 ? 'bullish' : score <= -2 ? 'bearish' : 'neutral';
+  const absoluteMove = Math.abs(changePercent);
+  const riskLevel = absoluteMove >= 4 || intradayRange >= 5
+    ? 'high'
+    : absoluteMove >= 2 || intradayRange >= 3
+      ? 'medium'
+      : 'low';
+  const direction = changePercent > 0 ? '上涨' : changePercent < 0 ? '下跌' : '持平';
+  const highlights = [
+    `当前价格较前收盘${direction} ${Math.abs(changePercent).toFixed(2)}%`,
+    `价格位于 52 周区间的 ${position52Week.toFixed(1)}% 位置`,
+  ];
+  const risks = [
+    `日内波动区间约为前收盘价的 ${intradayRange.toFixed(2)}%`,
+    '本结果仅基于单次行情快照，未纳入财报、新闻与宏观信息',
+  ];
 
   return {
-    summary: result.summary,
-    sentiment: result.sentiment,
-    risk_level: result.risk_level,
+    summary: `${stockData.symbol} 当前较前收盘${direction}，短线信号整体${sentiment === 'bullish' ? '偏强' : sentiment === 'bearish' ? '偏弱' : '中性'}。价格处于 52 周区间的 ${position52Week.toFixed(1)}% 位置，需结合更长周期数据验证。`,
+    sentiment,
+    risk_level: riskLevel,
+    confidence: clamp(Math.round(55 + Math.abs(score) * 7), 55, 80),
+    highlights,
+    risks,
+    source: 'rule-based',
+    notice: notice || '当前使用可解释的快速评估模型。',
+    generatedAt: new Date().toISOString(),
   };
 }
 
-module.exports = { analyzeStock };
+function extractJson(raw) {
+  const cleaned = String(raw || '').replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start < 0 || end <= start) throw new Error('AI response did not contain a JSON object');
+  return JSON.parse(cleaned.slice(start, end + 1));
+}
+
+function normalizeAnalysis(result) {
+  if (!result || typeof result.summary !== 'string' || !result.summary.trim()) {
+    throw new Error('AI response missing summary');
+  }
+  if (!VALID_SENTIMENTS.includes(result.sentiment)) {
+    throw new Error(`Invalid sentiment: ${result.sentiment}`);
+  }
+  if (!VALID_RISK_LEVELS.includes(result.risk_level)) {
+    throw new Error(`Invalid risk_level: ${result.risk_level}`);
+  }
+  const list = (value) => Array.isArray(value)
+    ? value.filter((item) => typeof item === 'string' && item.trim()).slice(0, 3)
+    : [];
+  return {
+    summary: result.summary.trim(),
+    sentiment: result.sentiment,
+    risk_level: result.risk_level,
+    confidence: clamp(Math.round(Number(result.confidence) || 60), 0, 100),
+    highlights: list(result.highlights),
+    risks: list(result.risks),
+    source: 'deepseek',
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+async function analyzeStock(stockData, options = {}) {
+  if (options.mode === 'quick') return buildRuleBasedAnalysis(stockData);
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) {
+    return buildRuleBasedAnalysis(stockData, 'DeepSeek 未配置，已自动切换为快速评估。');
+  }
+
+  try {
+    const response = await fetch(`${BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      signal: AbortSignal.timeout(25_000),
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          {
+            role: 'user',
+            content: `请分析以下行情快照并仅返回 JSON：
+${JSON.stringify(stockData, null, 2)}`,
+          },
+        ],
+        temperature: 0.3,
+        max_tokens: 700,
+      }),
+    });
+    if (!response.ok) throw new Error(`DeepSeek returned HTTP ${response.status}`);
+    const body = await response.json();
+    return normalizeAnalysis(extractJson(body.choices?.[0]?.message?.content));
+  } catch (error) {
+    console.warn(`DeepSeek analysis failed, using rule-based fallback: ${error.message}`);
+    return buildRuleBasedAnalysis(stockData, 'AI 服务暂时不可用，已自动切换为快速评估。');
+  }
+}
+
+module.exports = {
+  analyzeStock,
+  buildRuleBasedAnalysis,
+  extractJson,
+  normalizeAnalysis,
+};
