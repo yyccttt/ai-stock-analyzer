@@ -5,6 +5,8 @@ import ComparisonPanel from './components/ComparisonPanel';
 import HistoryPanel from './components/HistoryPanel';
 import { analyzeStock, compareStocks, fetchStock, syncAnalysis } from './lib/api';
 import { detectLanguage, getErrorMessage, messages, saveLanguage } from './lib/i18n';
+import { buildComparisonCsv, downloadTextFile } from './lib/export';
+import { detectTheme, saveTheme } from './lib/theme';
 import {
   clearHistory,
   loadHistory,
@@ -17,10 +19,12 @@ import './App.css';
 export default function App() {
   const [language, setLanguage] = useState(detectLanguage);
   const [activeView, setActiveView] = useState('analyze');
+  const [theme, setTheme] = useState(detectTheme);
   const [mode, setMode] = useState('ai');
   const [stockData, setStockData] = useState(null);
   const [analysis, setAnalysis] = useState(null);
   const [comparison, setComparison] = useState([]);
+  const [comparisonSeed, setComparisonSeed] = useState('AAPL, MSFT, NVDA');
   const [loading, setLoading] = useState(false);
   const [comparisonLoading, setComparisonLoading] = useState(false);
   const [error, setError] = useState('');
@@ -34,6 +38,11 @@ export default function App() {
     document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
     document.title = copy.pageTitle;
   }, [copy.pageTitle, language]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    saveTheme(theme);
+  }, [theme]);
 
   const notify = (message) => {
     setToast(message);
@@ -171,6 +180,29 @@ export default function App() {
     window.setTimeout(() => handleAnalyze(symbol), 0);
   };
 
+  const handleCompareWatchlist = () => {
+    if (watchlist.length < 2) {
+      setError(copy.errors.watchlistCompareCount);
+      return;
+    }
+    const symbols = watchlist.slice(0, 5).join(', ');
+    setComparisonSeed(symbols);
+    setActiveView('compare');
+    window.setTimeout(() => handleCompare(symbols), 0);
+  };
+
+  const handleComparisonExport = () => {
+    const csv = buildComparisonCsv(comparison, {
+      stock: copy.stock,
+      price: copy.price,
+      change: copy.change,
+      volume: copy.volume,
+      rangePosition: copy.rangePosition,
+    });
+    downloadTextFile(csv, `signal-desk-comparison-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8');
+    notify(copy.toastComparisonExported);
+  };
+
   return (
     <div className="app-shell">
       <header className="site-header">
@@ -198,6 +230,14 @@ export default function App() {
           </button>
         </nav>
         <div className="header-actions">
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')}
+            aria-label={theme === 'dark' ? copy.useLightTheme : copy.useDarkTheme}
+          >
+            {theme === 'dark' ? copy.lightTheme : copy.darkTheme}
+          </button>
           <div className="language-switch" role="group" aria-label={copy.languageLabel}>
             <button
               type="button"
@@ -223,7 +263,7 @@ export default function App() {
       <main>
         <section className="hero">
           <span className="hero-kicker">{copy.heroKicker}</span>
-          <h1>{copy.heroTitle}<br /><em>{copy.heroAccent}</em></h1>
+          <h1><span>{copy.heroTitle}</span> <em>{copy.heroAccent}</em></h1>
           <p>{copy.heroDescription}</p>
         </section>
 
@@ -276,6 +316,11 @@ export default function App() {
                     </button>
                   )) : <small>{copy.watchlistEmpty}</small>}
                 </div>
+                {watchlist.length >= 2 && (
+                  <button className="watchlist-compare" type="button" onClick={handleCompareWatchlist}>
+                    {copy.compareWatchlist}
+                  </button>
+                )}
               </section>
 
               {loading && (
@@ -324,6 +369,8 @@ export default function App() {
             onOpenSymbol={handleOpenSymbol}
             copy={copy}
             language={language}
+            initialSymbols={comparisonSeed}
+            onExport={handleComparisonExport}
           />
         )}
       </main>

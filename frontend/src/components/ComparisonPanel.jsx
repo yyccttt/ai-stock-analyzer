@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { formatCurrency, formatNumber, formatPercent } from '../lib/format';
 
 export default function ComparisonPanel({
@@ -8,8 +8,14 @@ export default function ComparisonPanel({
   onOpenSymbol,
   copy,
   language,
+  initialSymbols = 'AAPL, MSFT, NVDA',
+  onExport = () => {},
 }) {
-  const [symbols, setSymbols] = useState('AAPL, MSFT, NVDA');
+  const [symbols, setSymbols] = useState(initialSymbols);
+
+  useEffect(() => {
+    setSymbols(initialSymbols);
+  }, [initialSymbols]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -23,7 +29,14 @@ export default function ComparisonPanel({
           <span className="eyebrow">{copy.comparisonKicker}</span>
           <h2>{copy.comparisonTitle}</h2>
         </div>
-        <span className="limit-note">{copy.comparisonLimit}</span>
+        <div className="comparison-tools">
+          <span className="limit-note">{copy.comparisonLimit}</span>
+          {data?.length > 0 && (
+            <button className="secondary-button" type="button" onClick={onExport}>
+              {copy.exportComparison}
+            </button>
+          )}
+        </div>
       </div>
       <form className="compare-form" onSubmit={handleSubmit}>
         <label className="input-label" htmlFor="compare-symbols">{copy.comparisonLabel}</label>
