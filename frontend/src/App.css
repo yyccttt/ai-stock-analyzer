@@ -24,15 +24,17 @@
 }
 
 html {
-  min-width: 320px;
+  min-width: 0;
   min-height: 100%;
+  overflow-x: clip;
   background: var(--bg);
 }
 
 body {
   margin: 0;
-  min-width: 320px;
+  min-width: 0;
   min-height: 100vh;
+  overflow-x: clip;
   color: var(--text);
   background:
     radial-gradient(circle at 88% 8%, rgba(57, 230, 177, 0.07), transparent 26rem),
@@ -57,10 +59,14 @@ a:focus-visible {
 }
 
 .app-shell {
+  width: 100%;
+  max-width: 100%;
   min-height: 100vh;
+  overflow-x: clip;
 }
 
 .site-header {
+  width: 100%;
   height: 76px;
   padding: 0 clamp(22px, 5vw, 76px);
   display: grid;
@@ -75,6 +81,7 @@ a:focus-visible {
 }
 
 .brand {
+  min-width: 0;
   width: fit-content;
   display: flex;
   gap: 12px;
@@ -111,6 +118,7 @@ a:focus-visible {
   display: block;
   font: 700 16px/1 'Manrope', sans-serif;
   letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
 .brand small {
@@ -159,6 +167,7 @@ a:focus-visible {
 }
 
 .header-actions {
+  min-width: 0;
   justify-self: end;
   display: flex;
   align-items: center;
@@ -204,6 +213,7 @@ a:focus-visible {
 
 main {
   width: min(1180px, calc(100% - 40px));
+  max-width: 100%;
   margin: 0 auto;
   padding: 72px 0 80px;
 }
@@ -685,6 +695,51 @@ input::placeholder {
 
 .positive-text { color: var(--accent) !important; }
 .negative-text { color: var(--danger) !important; }
+.warning-text { color: var(--warning) !important; }
+
+.movement-section {
+  padding: 24px 0 4px;
+}
+
+.movement-heading h2 {
+  margin: 7px 0 14px;
+  font: 600 15px/1.3 'Manrope', sans-serif;
+  letter-spacing: -0.015em;
+}
+
+.movement-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.movement-item {
+  min-width: 0;
+  min-height: 112px;
+  padding: 13px;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: rgba(5, 15, 27, 0.38);
+}
+
+.movement-item > span {
+  color: #71859b;
+  font-size: 10px;
+}
+
+.movement-item > strong {
+  font: 650 17px/1.15 'Manrope', sans-serif;
+}
+
+.movement-item > small {
+  color: #91a4b8;
+  font-size: 10px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
 
 .metrics-grid {
   display: grid;
@@ -1101,7 +1156,7 @@ footer p {
 
 @media (max-width: 840px) {
   .site-header {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .site-header nav {
@@ -1147,16 +1202,79 @@ footer p {
 @media (max-width: 600px) {
   .site-header {
     height: 66px;
-    padding: 0 18px;
+    padding: 0 14px;
+    gap: 10px;
   }
 
   .market-status {
     display: none;
   }
 
+  .brand {
+    gap: 8px;
+  }
+
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+  }
+
+  .brand > span:last-child {
+    min-width: 0;
+  }
+
+  .brand small {
+    display: none;
+  }
+
+  .header-actions {
+    gap: 0;
+  }
+
+  .language-switch {
+    flex: 0 0 auto;
+    padding: 3px;
+    border-color: rgba(57, 230, 177, 0.25);
+  }
+
+  .language-switch button {
+    min-width: 42px;
+    height: 30px;
+    padding: 0 7px;
+    font-size: 11px;
+  }
+
   main {
-    width: min(100% - 28px, 1180px);
+    width: min(calc(100% - 24px), 1180px);
     padding: 34px 0 48px;
+  }
+
+  main > *,
+  .dashboard-grid,
+  .primary-column,
+  .search-card,
+  .comparison-card,
+  .result-card,
+  .history-card,
+  .insight-panel,
+  .movement-item {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  p,
+  li,
+  small,
+  button,
+  .source-note,
+  .company-name,
+  .ticker {
+    overflow-wrap: anywhere;
   }
 
   .hero {
@@ -1185,11 +1303,22 @@ footer p {
   .search-heading,
   .analysis-heading {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .comparison-heading {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .comparison-heading > div {
+    min-width: 0;
+    flex: 1 1 190px;
+  }
+
+  .comparison-heading .limit-note {
+    flex: 0 0 auto;
   }
 
   .mode-switch {
@@ -1203,6 +1332,7 @@ footer p {
 
   .search-row {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .search-row > .primary-button {
@@ -1225,12 +1355,16 @@ footer p {
   }
 
   .result-topline {
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
   }
 
   .source-note {
-    max-width: 125px;
-    text-align: right;
+    max-width: 100%;
+    padding-left: 4px;
+    text-align: left;
   }
 
   .price-row {
@@ -1240,6 +1374,15 @@ footer p {
 
   .metrics-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .movement-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .movement-item {
+    min-height: 118px;
+    padding: 12px;
   }
 
   .metrics-grid > div:nth-child(2) {
@@ -1276,6 +1419,13 @@ footer p {
 
   .result-actions .primary-button {
     grid-column: 1 / -1;
+  }
+
+  .result-actions button {
+    min-width: 0;
+    min-height: 46px;
+    padding: 8px 10px;
+    white-space: normal;
   }
 
   .table-wrap {
@@ -1395,19 +1545,24 @@ footer p {
 
 @media (max-width: 370px) {
   .site-header {
-    padding: 0 14px;
+    padding: 0 10px;
   }
 
   .brand {
     gap: 9px;
   }
 
-  .brand small {
-    display: none;
+  .brand strong {
+    font-size: 14px;
+  }
+
+  .language-switch button {
+    min-width: 39px;
+    padding: 0 5px;
   }
 
   main {
-    width: calc(100% - 22px);
+    width: calc(100% - 16px);
   }
 
   .hero h1 {
@@ -1417,10 +1572,45 @@ footer p {
   .search-card,
   .comparison-card,
   .result-card {
-    padding: 17px;
+    padding: 14px;
+  }
+
+  .analysis-section {
+    margin: 0 -14px -14px;
+    padding: 22px 14px 14px;
+  }
+
+  .movement-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .movement-item {
+    min-height: 0;
+  }
+
+  .comparison-table tr {
+    padding: 13px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .comparison-table td,
+  .comparison-table td:first-child,
+  .comparison-table td:nth-child(5),
+  .comparison-action {
+    grid-column: 1;
+  }
+
+  .comparison-table td:first-child {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .comparison-table td:first-child span {
+    justify-self: start;
   }
 
   .result-actions {
+    margin: 20px -14px -14px;
+    padding: 14px;
     grid-template-columns: 1fr;
   }
 

@@ -205,7 +205,7 @@ export default function App() {
               onClick={() => handleLanguageChange('zh')}
               aria-pressed={language === 'zh'}
             >
-              中
+              中文
             </button>
             <button
               type="button"

@@ -26,7 +26,41 @@ export default function AnalysisResult({
   const risk = riskMap[analysis.risk_level] || riskMap.medium;
   const isUp = stockData.change >= 0;
   const position = Math.min(100, Math.max(0, stockData.metrics?.position52Week || 0));
+  const changePercent = Number(stockData.changePercent) || 0;
+  const openChangePercent = Number(stockData.open) > 0
+    ? ((Number(stockData.price) - Number(stockData.open)) / Number(stockData.open)) * 100
+    : 0;
+  const intradayRange = Number(stockData.metrics?.intradayRangePercent) || 0;
+  const highGap = Number(stockData.metrics?.gapFrom52WeekHigh) || 0;
   const companyName = language === 'zh' ? (stockData.name || stockData.symbol) : stockData.symbol;
+  const movementItems = [
+    {
+      label: copy.vsPreviousClose,
+      value: formatPercent(changePercent),
+      tone: changePercent > 0 ? 'positive-text' : changePercent < 0 ? 'negative-text' : '',
+      detail: changePercent > 0
+        ? copy.previousCloseUp
+        : changePercent < 0 ? copy.previousCloseDown : copy.previousCloseFlat,
+    },
+    {
+      label: copy.vsOpen,
+      value: formatPercent(openChangePercent),
+      tone: openChangePercent > 0 ? 'positive-text' : openChangePercent < 0 ? 'negative-text' : '',
+      detail: openChangePercent > 0 ? copy.openUp : openChangePercent < 0 ? copy.openDown : copy.openFlat,
+    },
+    {
+      label: copy.intradayRange,
+      value: formatPercent(intradayRange, false),
+      tone: intradayRange >= 5 ? 'negative-text' : intradayRange >= 3 ? 'warning-text' : '',
+      detail: intradayRange >= 5 ? copy.rangeWide : intradayRange >= 3 ? copy.rangeActive : copy.rangeCalm,
+    },
+    {
+      label: copy.below52WeekHigh,
+      value: formatPercent(highGap),
+      tone: highGap >= -5 ? 'positive-text' : '',
+      detail: highGap >= -5 ? copy.highNear : highGap >= -20 ? copy.highMid : copy.highFar,
+    },
+  ];
 
   return (
     <article className="result-card">
@@ -65,6 +99,22 @@ export default function AnalysisResult({
         <div><span>{copy.low}</span><strong>{formatCurrency(stockData.low)}</strong></div>
         <div><span>{copy.volume}</span><strong>{formatNumber(stockData.volume, language)}</strong></div>
       </div>
+
+      <section className="movement-section" aria-labelledby="movement-title">
+        <div className="movement-heading">
+          <span className="eyebrow">{copy.analysisKicker}</span>
+          <h2 id="movement-title">{copy.movementTitle}</h2>
+        </div>
+        <div className="movement-grid">
+          {movementItems.map((item) => (
+            <div className="movement-item" key={item.label}>
+              <span>{item.label}</span>
+              <strong className={item.tone}>{item.value}</strong>
+              <small>{item.detail}</small>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="range-section" aria-label={copy.range52}>
         <div className="range-heading">

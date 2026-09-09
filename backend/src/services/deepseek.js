@@ -5,12 +5,12 @@ const VALID_RISK_LEVELS = ['low', 'medium', 'high'];
 const SYSTEM_PROMPT = `你是一名谨慎、客观的美股分析助手。根据给定的单次行情快照输出 JSON，不得输出 Markdown 或额外文字。
 
 JSON 必须包含：
-- summary：2-4 句简洁摘要，使用用户指定的语言，不得承诺收益
+- summary：3-5 句具体摘要，解释相对昨收、相对开盘、日内振幅与 52 周位置，使用用户指定的语言，不得承诺收益
 - sentiment：bullish、bearish 或 neutral
 - risk_level：low、medium 或 high
 - confidence：0-100 的整数，表示结论可信度而非上涨概率
-- highlights：1-3 条简短要点数组
-- risks：1-3 条简短风险数组
+- highlights：4-5 条简短要点数组，至少覆盖涨跌幅、开盘后走势、日内振幅和 52 周位置
+- risks：3-4 条简短风险数组，解释波动强度、价格所处区间及数据局限
 
 必须说明单次行情快照的局限性，并避免将结果表述为投资建议。`;
 
@@ -22,6 +22,11 @@ function buildRuleBasedAnalysis(stockData, notice, language = 'zh') {
   const changePercent = Number(stockData.changePercent) || 0;
   const position52Week = Number(stockData.metrics?.position52Week) || 0;
   const intradayRange = Number(stockData.metrics?.intradayRangePercent) || 0;
+  const price = Number(stockData.price) || 0;
+  const open = Number(stockData.open) || 0;
+  const absoluteChange = Math.abs(Number(stockData.change) || 0);
+  const openChangePercent = open > 0 ? ((price - open) / open) * 100 : 0;
+  const gapFrom52WeekHigh = Number(stockData.metrics?.gapFrom52WeekHigh) || 0;
   let score = 0;
   if (changePercent >= 1) score += 2;
   else if (changePercent <= -1) score -= 2;
@@ -40,17 +45,41 @@ function buildRuleBasedAnalysis(stockData, notice, language = 'zh') {
   if (language === 'en') {
     const direction = changePercent > 0 ? 'up' : changePercent < 0 ? 'down' : 'unchanged';
     const tone = sentiment === 'bullish' ? 'constructive' : sentiment === 'bearish' ? 'weak' : 'neutral';
+    const openTone = openChangePercent > 0.1
+      ? 'buyers have strengthened the price since the open'
+      : openChangePercent < -0.1
+        ? 'selling pressure has persisted since the open'
+        : 'the price remains close to its opening level';
+    const rangeTone = intradayRange >= 5
+      ? 'an unusually wide session range'
+      : intradayRange >= 3 ? 'an active session range' : 'a relatively contained session range';
+    const closeMove = changePercent === 0
+      ? 'is unchanged from the previous close'
+      : `is ${direction} ${Math.abs(changePercent).toFixed(2)}% ($${absoluteChange.toFixed(2)}) from the previous close`;
     return {
-      summary: `${stockData.symbol} is ${direction} ${Math.abs(changePercent).toFixed(2)}% from the previous close, leaving the near-term signal ${tone}. The price sits at ${position52Week.toFixed(1)}% of its 52-week range, so a longer time horizon is needed to confirm the signal.`,
+      summary: `${stockData.symbol} ${closeMove}, leaving the near-term signal ${tone}. It has moved ${openChangePercent >= 0 ? '+' : ''}${openChangePercent.toFixed(2)}% since the open, so ${openTone}. The high-low spread equals ${intradayRange.toFixed(2)}% of the previous close, which is ${rangeTone}. The price sits at ${position52Week.toFixed(1)}% of its 52-week range and ${Math.abs(gapFrom52WeekHigh).toFixed(2)}% below the 52-week high.`,
       sentiment,
       risk_level: riskLevel,
       confidence: clamp(Math.round(55 + Math.abs(score) * 7), 55, 80),
       highlights: [
-        `Price is ${direction} ${Math.abs(changePercent).toFixed(2)}% from the previous close`,
-        `Price is at ${position52Week.toFixed(1)}% of its 52-week range`,
+        changePercent === 0
+          ? 'Price is unchanged from the previous close'
+          : `Price is ${direction} ${Math.abs(changePercent).toFixed(2)}%, or $${absoluteChange.toFixed(2)}, from the previous close`,
+        `Since the open, the price has moved ${openChangePercent >= 0 ? '+' : ''}${openChangePercent.toFixed(2)}%`,
+        `The session high-low spread is ${intradayRange.toFixed(2)}% of the previous close`,
+        `Price is at ${position52Week.toFixed(1)}% of its 52-week range and ${Math.abs(gapFrom52WeekHigh).toFixed(2)}% below the high`,
       ],
       risks: [
-        `The intraday range is ${intradayRange.toFixed(2)}% of the previous close`,
+        intradayRange >= 5
+          ? 'The wide intraday range indicates elevated short-term volatility'
+          : intradayRange >= 3
+            ? 'Intraday movement is active enough to increase short-term execution risk'
+            : 'A calm single session does not establish a durable trend',
+        position52Week >= 80
+          ? 'Trading near the top of the 52-week range can increase sensitivity to pullbacks'
+          : position52Week <= 20
+            ? 'Trading near the bottom of the 52-week range can reflect persistent weakness'
+            : 'The mid-range position does not provide a strong long-term directional signal',
         'This snapshot excludes financials, news, macro conditions, and longer-term price history',
       ],
       source: 'rule-based',
@@ -60,17 +89,39 @@ function buildRuleBasedAnalysis(stockData, notice, language = 'zh') {
   }
 
   const direction = changePercent > 0 ? '上涨' : changePercent < 0 ? '下跌' : '持平';
+  const closeMove = changePercent === 0
+    ? '与前收盘持平'
+    : `较前收盘${direction} ${Math.abs(changePercent).toFixed(2)}%（$${absoluteChange.toFixed(2)}）`;
+  const openTone = openChangePercent > 0.1
+    ? '开盘后买盘相对占优'
+    : openChangePercent < -0.1 ? '开盘后卖压相对明显' : '当前价格接近开盘水平';
+  const rangeTone = intradayRange >= 5
+    ? '日内波动明显放大'
+    : intradayRange >= 3 ? '日内交投波动较活跃' : '日内波动相对温和';
   const highlights = [
-    `当前价格较前收盘${direction} ${Math.abs(changePercent).toFixed(2)}%`,
-    `价格位于 52 周区间的 ${position52Week.toFixed(1)}% 位置`,
+    changePercent === 0
+      ? '当前价格与前收盘持平'
+      : `当前价格较前收盘${direction} ${Math.abs(changePercent).toFixed(2)}%，绝对变动 $${absoluteChange.toFixed(2)}`,
+    `开盘以来价格变动 ${openChangePercent >= 0 ? '+' : ''}${openChangePercent.toFixed(2)}%，${openTone}`,
+    `当日最高与最低价之间的振幅约为前收盘价的 ${intradayRange.toFixed(2)}%`,
+    `价格位于 52 周区间的 ${position52Week.toFixed(1)}% 位置，距 52 周高点 ${Math.abs(gapFrom52WeekHigh).toFixed(2)}%`,
   ];
   const risks = [
-    `日内波动区间约为前收盘价的 ${intradayRange.toFixed(2)}%`,
+    intradayRange >= 5
+      ? '日内振幅较宽，短线价格与成交执行风险明显上升'
+      : intradayRange >= 3
+        ? '日内波动较活跃，短线进出价格可能存在较大偏差'
+        : '单日波动温和并不能单独确认趋势已经形成',
+    position52Week >= 80
+      ? '价格接近 52 周区间上沿，对回撤和利空消息可能更敏感'
+      : position52Week <= 20
+        ? '价格接近 52 周区间下沿，可能反映中期弱势仍未扭转'
+        : '价格处于 52 周区间中部，长期方向信号仍不明确',
     '本结果仅基于单次行情快照，未纳入财报、新闻与宏观信息',
   ];
 
   return {
-    summary: `${stockData.symbol} 当前较前收盘${direction}，短线信号整体${sentiment === 'bullish' ? '偏强' : sentiment === 'bearish' ? '偏弱' : '中性'}。价格处于 52 周区间的 ${position52Week.toFixed(1)}% 位置，需结合更长周期数据验证。`,
+    summary: `${stockData.symbol} 当前${closeMove}，短线信号整体${sentiment === 'bullish' ? '偏强' : sentiment === 'bearish' ? '偏弱' : '中性'}。开盘以来变动 ${openChangePercent >= 0 ? '+' : ''}${openChangePercent.toFixed(2)}%，${openTone}。最高与最低价形成 ${intradayRange.toFixed(2)}% 的日内振幅，${rangeTone}。当前价格位于 52 周区间的 ${position52Week.toFixed(1)}% 位置，距离 52 周高点约 ${Math.abs(gapFrom52WeekHigh).toFixed(2)}%。`,
     sentiment,
     risk_level: riskLevel,
     confidence: clamp(Math.round(55 + Math.abs(score) * 7), 55, 80),
@@ -101,7 +152,7 @@ function normalizeAnalysis(result) {
     throw new Error(`Invalid risk_level: ${result.risk_level}`);
   }
   const list = (value) => Array.isArray(value)
-    ? value.filter((item) => typeof item === 'string' && item.trim()).slice(0, 3)
+    ? value.filter((item) => typeof item === 'string' && item.trim()).slice(0, 5)
     : [];
   return {
     summary: result.summary.trim(),
@@ -155,7 +206,7 @@ ${JSON.stringify(stockData, null, 2)}`,
           },
         ],
         temperature: 0.3,
-        max_tokens: 700,
+        max_tokens: 1000,
       }),
     });
     if (!response.ok) throw new Error(`DeepSeek returned HTTP ${response.status}`);
