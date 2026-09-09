@@ -22,8 +22,11 @@ test('rule-based analysis produces explainable bullish output', () => {
   assert.equal(result.sentiment, 'bullish');
   assert.equal(result.risk_level, 'medium');
   assert.equal(result.source, 'rule-based');
-  assert.equal(result.highlights.length, 2);
+  assert.equal(result.highlights.length, 4);
+  assert.equal(result.risks.length, 3);
   assert.match(result.summary, /AAPL/);
+  assert.match(result.summary, /开盘以来/);
+  assert.match(result.summary, /日内振幅/);
 });
 
 test('rule-based analysis identifies bearish and high-risk moves', () => {
@@ -41,8 +44,11 @@ test('rule-based analysis returns fully English user-facing content when request
   const result = buildRuleBasedAnalysis(stock(), null, 'en');
   assert.equal(result.sentiment, 'bullish');
   assert.match(result.summary, /previous close/);
+  assert.match(result.summary, /since the open/);
+  assert.match(result.summary, /high-low spread/);
   assert.match(result.highlights[0], /Price is/);
-  assert.match(result.risks[1], /financials/);
+  assert.equal(result.highlights.length, 4);
+  assert.match(result.risks[2], /financials/);
   assert.match(result.notice, /rapid-assessment/);
 });
 
@@ -61,7 +67,7 @@ test('normalizeAnalysis constrains output and removes invalid list items', () =>
   });
   assert.equal(result.summary, '简要分析');
   assert.equal(result.confidence, 100);
-  assert.deepEqual(result.highlights, ['a', 'b', 'c']);
+  assert.deepEqual(result.highlights, ['a', 'b', 'c', 'd']);
   assert.deepEqual(result.risks, []);
 });
 
